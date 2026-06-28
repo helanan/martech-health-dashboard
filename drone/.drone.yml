@@ -1,0 +1,84 @@
+kind: pipeline
+type: kubernetes
+name: martech-pipeline
+
+trigger:
+  branch:
+    - main
+    - feature/*
+  event:
+    - push
+    - pull_request
+
+steps:
+  # ── 1. Lint & type-check ───────────────────────────────────────────────
+  - name: lint
+    image: python:3.11-slim
+    commands:
+      - pip install ruff mypy --quiet
+      - ruff check src/ tests/
+      - mypy src/ --ignore-missing-imports
+
+  # ── 2. Unit tests ─────────────────────────────────────────────────────
+  - name: test-unit
+    image: python:3.11-slim
+    commands:
+      - pip install -e ".[dev]" --quiet
+      - pytest tests/unit -v --cov=src --cov-report=term-missing
+    depends_on:
+      - lint
+
+  # ── 3. Integration tests (needs live services) ────────────────────────
+  - name: test-integration
+    image: python:3.11-slim
+    environment:
+      MONGO_URI:
+        from_secret: MONGO_URI_TEST
+      REDIS_URL:
+        from_secret: REDIS_URL_TEST
+      ES_HOSTS:
+        from_secret: ES_HOSTS_TEST
+    commands:
+      - pip install -e ".[dev]" --quiet
+      - pytest tests/integration -v
+    depends_on:
+      - test-unit
+    when:
+      branch:
+        - main
+
+  # ── 4. Build & push Docker image ──────────────────────────────────────
+  - name: docker-build-push
+    image: plugins/ecr
+    settings:
+      access_key:
+        from_secret: AWS_ACCESS_KEY_ID
+      secret_key:
+        from_secret: AWS_SECRET_ACCESS_KEY
+      region: us-east-1
+      registry:
+        from_secret: ECR_REGISTRY
+      repo: martech-pipeline
+      tags:
+        - latest
+        - ${DRONE_COMMIT_SHA:0:8}
+    depends_on:
+      - test-integration
+    when:
+      branch:
+        - main
+
+  # ── 5. Deploy to EKS ──────────────────────────────────────────────────
+  - name: deploy-prod
+    image: bitnami/kubectl:latest
+    environment:
+      KUBECONFIG:
+        from_secret: KUBECONFIG_PROD
+    commands:
+      - kubectl kustomize k8s/overlays/prod | kubectl apply -f -
+      - kubectl rollout status deployment/martech-api -n martech --timeout=120s
+    depends_on:
+      - docker-build-push
+    when:
+      branch:
+        - main
