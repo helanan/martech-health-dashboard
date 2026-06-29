@@ -3,7 +3,8 @@ kind: Kustomization
 resources:
   - namespace.yaml
   - configmap.yaml
-  - secret.yaml
+  - service-account.yaml
+  - external-secrets.yaml
   - deployment.yaml
   - service.yaml
   - hpa.yaml
