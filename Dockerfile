@@ -8,7 +8,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 # ── dependencies ──────────────────────────────────────────────────────────
 FROM base AS deps
 COPY pyproject.toml .
-RUN pip install --upgrade pip && pip install -e .
+RUN pip install --upgrade pip && pip install .
 
 # ── final image ───────────────────────────────────────────────────────────
 FROM deps AS runtime

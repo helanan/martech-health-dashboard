@@ -22,7 +22,7 @@ spec:
     spec:
       containers:
         - name: api
-          image: YOUR_ECR_REGISTRY/martech-pipeline:latest
+          image: 849588873172.dkr.ecr.us-east-1.amazonaws.com/martech-pipeline:latest
           ports:
             - containerPort: 8000
           envFrom:
