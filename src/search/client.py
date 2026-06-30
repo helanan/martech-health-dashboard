@@ -18,9 +18,19 @@ class SearchClient:
     def __init__(self) -> None:
         raw_hosts = [h.strip() for h in settings.es_hosts.split(",")]
         use_ssl = any(h.startswith("https://") for h in raw_hosts)
-        hosts = [h.replace("https://", "").replace("http://", "") for h in raw_hosts]
+
+        parsed_hosts = []
+        for h in raw_hosts:
+            scheme = "https" if h.startswith("https://") else "http"
+            host = h.replace("https://", "").replace("http://", "")
+            port = 443 if use_ssl else 80
+            if ":" in host:
+                host, port_str = host.rsplit(":", 1)
+                port = int(port_str)
+            parsed_hosts.append({"host": host, "port": port, "scheme": scheme})
+
         self._os = AsyncOpenSearch(
-            hosts=hosts,
+            hosts=parsed_hosts,
             use_ssl=use_ssl,
             verify_certs=use_ssl,
             ssl_show_warn=False,
