@@ -31,17 +31,20 @@ async def lifespan(app: FastAPI):
     _cache = CacheClient()
     _search = SearchClient()
 
-    await _search.ensure_index(
-        "customer_event_mart",
-        mappings={
-            "properties": {
-                "customer_hk": {"type": "keyword"},
-                "event_count": {"type": "integer"},
-                "refreshed_at": {"type": "date"},
-                "events": {"type": "object", "enabled": False},
-            }
-        },
-    )
+    try:
+        await _search.ensure_index(
+            "customer_event_mart",
+            mappings={
+                "properties": {
+                    "customer_hk": {"type": "keyword"},
+                    "event_count": {"type": "integer"},
+                    "refreshed_at": {"type": "date"},
+                    "events": {"type": "object", "enabled": False},
+                }
+            },
+        )
+    except Exception as e:
+        log.warning("opensearch.unavailable_at_startup", error=str(e))
     log.info("app.started")
     yield
     if _mongo:

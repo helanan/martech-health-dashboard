@@ -1,4 +1,5 @@
 .env
+global-bundle.pem
 __pycache__/
 *.pyc
 *.pyo

@@ -1,8 +1,8 @@
-"""Elasticsearch client — index, search, and aggregation helpers."""
+"""OpenSearch client — index, search, and aggregation helpers."""
 
 from typing import Any
 
-from elasticsearch import AsyncElasticsearch
+from opensearchpy import AsyncOpenSearch
 import structlog
 
 from src.config import settings
@@ -16,10 +16,16 @@ def _index(name: str) -> str:
 
 class SearchClient:
     def __init__(self) -> None:
-        kwargs: dict[str, Any] = {"hosts": settings.es_hosts}
-        if settings.es_api_key:
-            kwargs["api_key"] = settings.es_api_key
-        self._es = AsyncElasticsearch(**kwargs)
+        raw_hosts = [h.strip() for h in settings.es_hosts.split(",")]
+        use_ssl = any(h.startswith("https://") for h in raw_hosts)
+        hosts = [h.replace("https://", "").replace("http://", "") for h in raw_hosts]
+        self._os = AsyncOpenSearch(
+            hosts=hosts,
+            use_ssl=use_ssl,
+            verify_certs=use_ssl,
+            ssl_show_warn=False,
+            http_compress=True,
+        )
 
     # ------------------------------------------------------------------
     # Index management
@@ -27,26 +33,25 @@ class SearchClient:
 
     async def ensure_index(self, name: str, mappings: dict) -> None:
         idx = _index(name)
-        if not await self._es.indices.exists(index=idx):
-            await self._es.indices.create(index=idx, mappings=mappings)
-            log.info("es.index_created", index=idx)
+        if not await self._os.indices.exists(index=idx):
+            await self._os.indices.create(index=idx, body={"mappings": mappings})
+            log.info("os.index_created", index=idx)
 
     # ------------------------------------------------------------------
     # Document ops
     # ------------------------------------------------------------------
 
     async def index_doc(self, index_name: str, doc_id: str, doc: dict) -> None:
-        await self._es.index(index=_index(index_name), id=doc_id, document=doc)
+        await self._os.index(index=_index(index_name), id=doc_id, body=doc)
 
     async def bulk_index(self, index_name: str, docs: list[dict]) -> None:
-        """docs must include '_id' field."""
         operations: list[dict] = []
         for doc in docs:
             doc_id = doc.pop("_id")
             operations.append({"index": {"_index": _index(index_name), "_id": doc_id}})
             operations.append(doc)
         if operations:
-            await self._es.bulk(operations=operations)
+            await self._os.bulk(body=operations)
 
     # ------------------------------------------------------------------
     # Search
@@ -63,8 +68,8 @@ class SearchClient:
         body: dict[str, Any] = {"query": query, "size": size, "from": from_}
         if aggs:
             body["aggs"] = aggs
-        resp = await self._es.search(index=_index(index_name), body=body)
-        return resp.body
+        resp = await self._os.search(index=_index(index_name), body=body)
+        return resp
 
     async def knn_search(
         self,
@@ -72,15 +77,11 @@ class SearchClient:
         field: str,
         query_vector: list[float],
         k: int = 10,
-        num_candidates: int = 100,
     ) -> dict:
-        """Approximate nearest-neighbour (vector search) via ES kNN API."""
-        resp = await self._es.search(
-            index=_index(index_name),
-            knn={"field": field, "query_vector": query_vector,
-                 "k": k, "num_candidates": num_candidates},
-        )
-        return resp.body
+        """k-NN vector search via OpenSearch kNN plugin."""
+        body = {"query": {"knn": {field: {"vector": query_vector, "k": k}}}}
+        resp = await self._os.search(index=_index(index_name), body=body)
+        return resp
 
     async def close(self) -> None:
-        await self._es.close()
+        await self._os.close()

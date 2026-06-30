@@ -12,8 +12,8 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
     redis_ttl_seconds: int = 300
 
-    # Elasticsearch
-    es_hosts: list[str] = ["http://localhost:9200"]
+    # Elasticsearch / OpenSearch
+    es_hosts: str = "http://localhost:9200"  # single host string; split on comma in client
     es_api_key: str = ""
     es_index_prefix: str = "martech"
 
