@@ -8,10 +8,6 @@ from typing import Any
 import structlog
 
 from src.vault.models import (
-    HubCustomer,
-    HubEvent,
-    LinkEventCustomer,
-    SatEventPayload,
     hash_key,
 )
 from src.vault.repository import VaultRepository

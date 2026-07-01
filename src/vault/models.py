@@ -9,7 +9,6 @@ Sat  — descriptive attributes (append-only, timestamped)
 from datetime import datetime, timezone
 from typing import Any
 import hashlib
-import json
 
 from pydantic import BaseModel, Field
 

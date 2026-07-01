@@ -3,7 +3,7 @@
 from contextlib import asynccontextmanager
 from typing import Any
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel
 import structlog
