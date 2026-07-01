@@ -23,8 +23,8 @@ steps:
   - name: test-unit
     image: python:3.11-slim
     commands:
-      - pip install -e ".[dev]" --quiet
-      - pytest tests/unit -v --cov=src --cov-report=term-missing
+      - pip install ".[dev]" --quiet
+      - PYTHONPATH=. pytest tests/unit -v --cov=src --cov-report=term-missing
     depends_on:
       - lint
 
