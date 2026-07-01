@@ -76,9 +76,8 @@ steps:
         from_secret: KUBECONFIG_PROD
     commands:
       - echo "$KUBECONFIG_B64" | base64 -d > /tmp/kubeconfig
-      - export KUBECONFIG=/tmp/kubeconfig
-      - kubectl kustomize k8s/overlays/prod | kubectl apply -f -
-      - kubectl rollout status deployment/martech-api -n martech --timeout=120s
+      - KUBECONFIG=/tmp/kubeconfig kubectl kustomize k8s/overlays/prod | KUBECONFIG=/tmp/kubeconfig kubectl apply -f -
+      - KUBECONFIG=/tmp/kubeconfig kubectl rollout status deployment/martech-api -n martech --timeout=120s
     depends_on:
       - docker-build-push
     when:
