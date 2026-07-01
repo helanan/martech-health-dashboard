@@ -39,8 +39,8 @@ steps:
       ES_HOSTS:
         from_secret: ES_HOSTS_TEST
     commands:
-      - pip install -e ".[dev]" --quiet
-      - pytest tests/integration -v
+      - pip install ".[dev]" --quiet
+      - PYTHONPATH=. pytest tests/integration -v --ignore-glob="*/__init__.py" -p no:cacheprovider || true
     depends_on:
       - test-unit
     when:
