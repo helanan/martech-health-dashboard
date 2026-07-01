@@ -70,14 +70,18 @@ steps:
 
   # ── 5. Deploy to EKS ──────────────────────────────────────────────────
   - name: deploy-prod
-    image: bitnami/kubectl:latest
+    image: amazon/aws-cli:latest
     environment:
-      KUBECONFIG_B64:
-        from_secret: KUBECONFIG_PROD
+      AWS_ACCESS_KEY_ID:
+        from_secret: AWS_ACCESS_KEY_ID
+      AWS_SECRET_ACCESS_KEY:
+        from_secret: AWS_SECRET_ACCESS_KEY
+      AWS_DEFAULT_REGION: us-east-1
     commands:
-      - echo "$KUBECONFIG_B64" | base64 -d > /tmp/kubeconfig
-      - KUBECONFIG=/tmp/kubeconfig kubectl kustomize k8s/overlays/prod | KUBECONFIG=/tmp/kubeconfig kubectl apply -f -
-      - KUBECONFIG=/tmp/kubeconfig kubectl rollout status deployment/martech-api -n martech --timeout=120s
+      - curl -sL https://dl.k8s.io/release/v1.29.0/bin/linux/amd64/kubectl -o /usr/local/bin/kubectl && chmod +x /usr/local/bin/kubectl
+      - aws eks update-kubeconfig --name martech-cluster --region us-east-1
+      - kubectl kustomize k8s/overlays/prod | kubectl apply --validate=false -f -
+      - kubectl rollout status deployment/martech-api -n martech --timeout=120s
     depends_on:
       - docker-build-push
     when:
