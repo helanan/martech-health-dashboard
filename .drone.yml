@@ -17,7 +17,7 @@ steps:
     commands:
       - pip install ruff mypy --quiet
       - ruff check src/ tests/
-      - mypy src/ --ignore-missing-imports
+      - mypy src/ --ignore-missing-imports --explicit-package-bases
 
   # ── 2. Unit tests ─────────────────────────────────────────────────────
   - name: test-unit
