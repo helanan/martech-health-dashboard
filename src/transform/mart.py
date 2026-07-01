@@ -68,7 +68,7 @@ class MartTransformer:
                 }
             },
         ]
-        results = await self._repo.aggregate("link_event_customer", pipeline)
+        results = await self._repo.aggregate("link_event_customer", pipeline)  # type: ignore[arg-type]
         mart_doc = {
             "customer_hk": customer_hk,
             "event_count": sum(len(r.get("events", [])) for r in results),
