@@ -57,7 +57,7 @@ class VaultRepository:
     # Aggregation helpers
     # ------------------------------------------------------------------
 
-    async def aggregate(self, collection: str, pipeline: list[dict]) -> list[dict]:
+    async def aggregate(self, collection: str, pipeline: list) -> list[dict]:
         cursor = self._db[collection].aggregate(pipeline)
         return await cursor.to_list(length=None)
 
