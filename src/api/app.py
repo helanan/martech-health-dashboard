@@ -10,9 +10,12 @@ import structlog
 
 from src.cache.client import CacheClient
 from src.config import settings
+from src.ingestion.campaign_pipeline import CampaignIngestionPipeline
 from src.ingestion.pipeline import EventIngestionPipeline
 from src.search.client import SearchClient
+from src.transform.campaign_mart import CampaignMartTransformer
 from src.transform.mart import MartTransformer
+from src.vault.models import hash_key
 from src.vault.repository import VaultRepository
 
 log = structlog.get_logger()
@@ -40,6 +43,29 @@ async def lifespan(app: FastAPI):
                     "event_count": {"type": "integer"},
                     "refreshed_at": {"type": "date"},
                     "events": {"type": "object", "enabled": False},
+                }
+            },
+        )
+        await _search.ensure_index(
+            "campaign_mart",
+            mappings={
+                "properties": {
+                    "campaign_hk": {"type": "keyword"},
+                    "channel": {"type": "keyword"},
+                    "budget": {"type": "float"},
+                    "summary": {
+                        "properties": {
+                            "impressions": {"type": "integer"},
+                            "clicks": {"type": "integer"},
+                            "conversions": {"type": "integer"},
+                            "total_revenue": {"type": "float"},
+                            "unique_customers": {"type": "integer"},
+                            "ctr": {"type": "float"},
+                            "cvr": {"type": "float"},
+                        }
+                    },
+                    "refreshed_at": {"type": "date"},
+                    "breakdown": {"type": "object", "enabled": False},
                 }
             },
         )
@@ -71,6 +97,18 @@ class IngestEventRequest(BaseModel):
     source: str = "api"
 
 
+class IngestCampaignInteractionRequest(BaseModel):
+    interaction_id: str
+    customer_id: str
+    campaign_id: str
+    interaction_type: str  # impression | click | conversion
+    properties: dict[str, Any] = {}
+    campaign_name: str | None = None
+    channel: str | None = None
+    budget: float | None = None
+    source: str = "api"
+
+
 class SearchRequest(BaseModel):
     query: dict[str, Any]
     aggs: dict[str, Any] | None = None
@@ -89,12 +127,25 @@ async def ingest_event(req: IngestEventRequest) -> dict:
     return {"status": "accepted", "event_id": req.event_id}
 
 
+@app.post("/ingest/campaign-interaction", status_code=202)
+async def ingest_campaign_interaction(req: IngestCampaignInteractionRequest) -> dict:
+    pipeline = CampaignIngestionPipeline(_repo)  # type: ignore[arg-type]
+    await pipeline.ingest(req.model_dump())
+    return {"status": "accepted", "interaction_id": req.interaction_id}
+
+
 @app.get("/mart/customer/{customer_id}")
 async def get_customer_mart(customer_id: str) -> dict:
-    from src.vault.models import hash_key
     customer_hk = hash_key(customer_id)
     transformer = MartTransformer(_repo, _search, _cache)  # type: ignore[arg-type]
     return await transformer.build_customer_event_mart(customer_hk)
+
+
+@app.get("/mart/campaign/{campaign_id}")
+async def get_campaign_mart(campaign_id: str) -> dict:
+    campaign_hk = hash_key(campaign_id)
+    transformer = CampaignMartTransformer(_repo, _search, _cache)  # type: ignore[arg-type]
+    return await transformer.build_campaign_mart(campaign_hk)
 
 
 @app.post("/search/{index_name}")
