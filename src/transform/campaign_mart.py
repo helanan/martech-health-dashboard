@@ -50,8 +50,8 @@ class CampaignMartTransformer:
                 }
             },
         ]
-        interaction_stats = await self._repo.aggregate(  # type: ignore[arg-type]
-            "sat_campaign_interaction", pipeline
+        interaction_stats = await self._repo.aggregate(
+            "sat_campaign_interaction", pipeline  # type: ignore[arg-type]
         )
 
         # Pull campaign details satellite
